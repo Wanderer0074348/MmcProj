@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
     if (strcmp(command, "compress") == 0) {
         return compress_file(input_file, output_file);
     } else if (strcmp(command, "decompress") == 0) {
-        // Handle decompression with the existing function
+        
         size_t output_size;
         char *decompressed_data = decompress_file(input_file, &output_size);
         
@@ -33,7 +33,6 @@ int main(int argc, char *argv[]) {
             return LZMA_ERROR_CORRUPT;
         }
         
-        // Write decompressed data to output file
         FILE *out = fopen(output_file, "wb");
         if (!out) {
             free(decompressed_data);
