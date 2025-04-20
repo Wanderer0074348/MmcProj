@@ -4,27 +4,23 @@
 #include <stdint.h>
 #include "easylzma/decompress.h"
 
-// Define error codes since they're not provided by the library
 #define LZMA_SUCCESS 0
 #define LZMA_ERROR_INPUT 1
 #define LZMA_ERROR_OUTPUT 2
 #define LZMA_ERROR_MEMORY 3
 #define LZMA_ERROR_CORRUPT 4
 
-// Structure to hold buffer information for read callbacks
 typedef struct {
     const unsigned char *data;
     size_t size;
     size_t position;
 } read_buffer_context;
 
-// Structure to hold buffer information for write callbacks
 typedef struct {
     unsigned char **data;
     size_t *size;
 } write_buffer_context;
 
-// Callback for reading from a buffer
 static int buffer_read_callback(void *ctx, void *buf, size_t *size) {
     read_buffer_context *context = (read_buffer_context *)ctx;
     size_t remaining = context->size - context->position;
@@ -36,22 +32,19 @@ static int buffer_read_callback(void *ctx, void *buf, size_t *size) {
     }
     
     *size = to_read;
-    return 0; // Success
+    return 0;
 }
 
-// Callback for writing to a dynamically allocated buffer
 static size_t buffer_write_callback(void *ctx, const void *buf, size_t size) {
     write_buffer_context *context = (write_buffer_context *)ctx;
     
-    // Reallocate the output buffer to accommodate new data
     *context->data = realloc(*context->data, *context->size + size);
-    if (!*context->data) return 0; // Memory allocation failed
+    if (!*context->data) return 0;
     
-    // Copy the new data
     memcpy(*context->data + *context->size, buf, size);
     *context->size += size;
     
-    return size; // Return the number of bytes written
+    return size;
 }
 
 char* decompress_file(const char *input_path, size_t *out_size) {
@@ -61,7 +54,6 @@ char* decompress_file(const char *input_path, size_t *out_size) {
         return NULL;
     }
 
-    // Get input file size
     fseek(in, 0, SEEK_END);
     size_t input_size = ftell(in);
     fseek(in, 0, SEEK_SET);
@@ -71,7 +63,6 @@ char* decompress_file(const char *input_path, size_t *out_size) {
         return NULL;
     }
 
-    // Read input file into buffer
     unsigned char *input_buffer = (unsigned char *)malloc(input_size);
     if (!input_buffer) {
         fclose(in);
@@ -88,11 +79,9 @@ char* decompress_file(const char *input_path, size_t *out_size) {
 
     fclose(in);
 
-    // Use EasyLZMA to decompress the data
     unsigned char *output_buffer = NULL;
     size_t output_size = 0;
     
-    // Create decompression handle
     elzma_decompress_handle handle;
     handle = elzma_decompress_alloc();
     if (!handle) {
@@ -101,28 +90,23 @@ char* decompress_file(const char *input_path, size_t *out_size) {
         return NULL;
     }
 
-    // Set up input context
     read_buffer_context input_ctx = {
         .data = input_buffer,
         .size = input_size,
         .position = 0
     };
     
-    // Set up output context
     write_buffer_context output_ctx = {
         .data = &output_buffer,
         .size = &output_size
     };
     
-    // Perform decompression (auto-detect format)
     int ret = elzma_decompress_run(handle, 
                                  buffer_read_callback, &input_ctx,
                                  buffer_write_callback, &output_ctx,
                                  ELZMA_lzma);
-    // Free the decompression handle
     elzma_decompress_free(&handle);
     
-    // Free input buffer as we don't need it anymore
     free(input_buffer);
     
     if (ret != ELZMA_E_OK) {
@@ -130,8 +114,7 @@ char* decompress_file(const char *input_path, size_t *out_size) {
         return NULL;
     }
 
-    // Safety check for decompression bombs
-    if (output_size > (100 * 1024 * 1024)) { // 100MB safety limit
+    if (output_size > (100 * 1024 * 1024)) {
         fprintf(stderr, "Decompressed size is too large: %zu bytes\n", output_size);
         free(output_buffer);
         return NULL;
@@ -143,37 +126,31 @@ char* decompress_file(const char *input_path, size_t *out_size) {
 
 int decompress_buffer(const unsigned char *input_buffer, size_t input_size,
                      unsigned char **output_buffer, size_t *output_size) {
-    // Initialize decompression
     elzma_decompress_handle handle = elzma_decompress_alloc();
     if (!handle) {
         fprintf(stderr, "Failed to allocate decompression handle\n");
         return LZMA_ERROR_MEMORY;
     }
     
-    // Set up input context
     read_buffer_context input_ctx = {
         .data = input_buffer,
         .size = input_size,
         .position = 0
     };
     
-    // Initialize output variables
     *output_buffer = NULL;
     *output_size = 0;
     
-    // Set up output context
     write_buffer_context output_ctx = {
         .data = output_buffer,
         .size = output_size
     };
     
-    // Perform decompression
     int ret = elzma_decompress_run(handle, 
                                  buffer_read_callback, &input_ctx,
                                  buffer_write_callback, &output_ctx,
                                  ELZMA_lzma);
     
-    // Free decompression handle
     elzma_decompress_free(&handle);
     
     if (ret != ELZMA_E_OK) {
