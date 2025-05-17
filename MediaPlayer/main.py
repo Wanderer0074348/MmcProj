@@ -10,6 +10,7 @@ import platform
 from moviepy import VideoFileClip
 import tempfile
 import numpy as np
+# from moviepy.audio.fx import speedx 
 
 class ImprovedMediaPlayer:
     def __init__(self, root):
